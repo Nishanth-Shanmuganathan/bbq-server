@@ -57,3 +57,19 @@ exports.authenticate = async (req, res, next) => {
     res.status(403).send(error)
   }
 }
+
+exports.adminAuthenticate = async (req, res, next) => {
+  try {
+    const token = req.headers['authorization'].split(' ')[1]
+    const { id } = jwt.decode(token, process.env.JWT_STRING)
+    console.log(id);
+    const user = await User.findById(id)
+    if (!user.isAdmin) {
+      throw new Error()
+    }
+    req.user = user
+    next()
+  } catch (error) {
+    res.status(403).send(error)
+  }
+}

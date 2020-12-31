@@ -19,7 +19,7 @@ app.use('', (req, res, next) => {
   next()
 })
 app.use('/auth', authRouter)
-app.use('/server', authenticate, hotelsRouter)
+app.use('/server', hotelsRouter)
 
 app.use('/', express.static(path.join(__dirname, 'Bbq')))
 

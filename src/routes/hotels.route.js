@@ -4,12 +4,14 @@ const { db } = require('./../models/hotel.model')
 const Hotel = require('./../models/hotel.model')
 const Dish = require('./../models/dish.model')
 const Location = require('./../models/location.model')
+const User = require('./../models/user.model')
 const Offer = require('./../models/offer.model')
+const { authenticate, adminAuthenticate } = require('../controllers/auth.controller')
 
 const hotelRouter = express.Router()
 
 
-hotelRouter.get('/home', async (req, res) => {
+hotelRouter.get('/home', authenticate, async (req, res) => {
   const user = req.user
   try {
 
@@ -28,7 +30,7 @@ hotelRouter.get('/home', async (req, res) => {
   }
 })
 
-hotelRouter.get('/locations', async (req, res) => {
+hotelRouter.get('/locations', authenticate, async (req, res) => {
   const address = ['Street name, Landmark', 'Area Name', 'City Name', 'State']
   try {
     const locations = await Location.find({})
@@ -40,7 +42,7 @@ hotelRouter.get('/locations', async (req, res) => {
   }
 })
 
-hotelRouter.get('/dishes', async (req, res) => {
+hotelRouter.get('/dishes', authenticate, async (req, res) => {
 
   try {
     const dishes = await Dish.find({}).populate('location')
@@ -50,7 +52,7 @@ hotelRouter.get('/dishes', async (req, res) => {
     res.status(400).send({ error: 'Unable to fetch dishes' })
   }
 })
-hotelRouter.post('/dishes', async (req, res) => {
+hotelRouter.post('/dishes', authenticate, async (req, res) => {
   const location = req.body
   try {
     const dishes = await Dish.find({ location: location._id }).populate('location')
@@ -61,7 +63,7 @@ hotelRouter.post('/dishes', async (req, res) => {
   }
 })
 
-hotelRouter.get('/offers', async (req, res) => {
+hotelRouter.get('/offers', authenticate, async (req, res) => {
 
   try {
     const seasonalOffers = await Offer.find({ isSeasonal: true })
@@ -73,7 +75,7 @@ hotelRouter.get('/offers', async (req, res) => {
   }
 })
 
-hotelRouter.get('/cuisines', async (req, res) => {
+hotelRouter.get('/cuisines', authenticate, async (req, res) => {
 
   try {
     const data = await db.collection('cuisines').find({}).toArray()
@@ -84,75 +86,72 @@ hotelRouter.get('/cuisines', async (req, res) => {
   }
 })
 
-// hotelRouter.get('/:search', async (req, res) => {
-//   const searchReg = new RegExp("^" + req.params.search, 'i');
-//   const user = req.user
-//   try {
-//     const hotels = await Hotel.find({ name: searchReg, email: { $ne: user.email } })
-//     console.log(hotels);
-//     res.status(200).send({ hotels })
-//   } catch (error) {
-//     console.log(error);
-//     res.status(400).send({ error: 'Unable to fetch hotels' })
-//   }
-// })
+hotelRouter.post('/dish', adminAuthenticate, async (req, res) => {
+  try {
+    const dish = new Dish(req.body)
+    await dish.save()
+    const location = await Location.findOne({ _id: dish.location })
+    let result = {}
+    result._id = dish._id
+    result.name = dish.name
+    result.imageUrl = dish.imageUrl
+    result.location = location
+    console.log(result);
+    res.status(200).send(result)
+  } catch (error) {
+    console.log(error);
+    res.status(400).send({ error: 'Unable to add dish' })
+  }
+})
+hotelRouter.post('/offer', adminAuthenticate, async (req, res) => {
+  try {
+    const offer = new Offer(req.body)
+    await offer.save()
+    res.status(200).send(offer)
+  } catch (error) {
+    console.log(error);
+    res.status(400).send({ error: 'Unable to add offer' })
+  }
+})
+hotelRouter.post('/location', adminAuthenticate, async (req, res) => {
+  try {
+    const location = new Location(req.body)
+    // await location.save()
+    res.status(200).send(location)
+  } catch (error) {
+    console.log(error);
+    res.status(400).send({ error: 'Unable to add location' })
+  }
+})
+hotelRouter.get('/location/:locationId', adminAuthenticate, async (req, res) => {
+  try {
+    const locationId = req.params.locationId
+    const location = await Location.findOne({ _id: locationId })
+    res.status(200).send(location)
+  } catch (error) {
+    console.log(error);
+    res.status(400).send({ error: 'Unable to fetch location' })
+  }
+})
 
-// hotelRouter.get('/dish/:id', async (req, res) => {
-//   const user = req.user
-//   const hotelId = req.params.id
-//   try {
-//     console.log(hotelId);
-//     console.log(user);
-//     const hotel = await Hotel.findOne({ _id: hotelId })
-//     res.status(200).send({ hotel })
-//   } catch (error) {
-//     console.log(error);
-//     res.status(400).send({ error: 'Unable to fetch hotel details...' })
-//   }
-// })
+hotelRouter.post('/booking', authenticate, async (req, res) => {
+  let user = req.user
+  try {
+    // if (user.isAdmin) {
+    //   throw new Error()
+    // }
+    const booking = req.body
+    booking.location = booking.location._id
+    user.bookings.push(booking)
+    await user.save()
+    res.status(200).send({ message: 'Booking confirmed', user })
+  } catch (error) {
+    console.log(error);
+    res.status(400).send({ error: 'Unable to confirm booking' })
+  }
+})
 
-// hotelRouter.get('/city/:cityName', async (req, res) => {
-//   const searchReg = new RegExp("^" + req.params.cityName, 'i');
-//   const user = req.user
-//   try {
-//     const hotels = await Hotel.find({ city: searchReg, email: { $ne: user.email } })
-//     console.log(hotels);
-//     res.status(200).send({ hotels })
-//   } catch (error) {
-//     console.log(error);
-//     res.status(400).send({ error: 'Unable to fetch hotels' })
-//   }
-// })
 
-// hotelRouter.post('', async (req, res) => {
-//   const user = req.user
-//   try {
-//     const hotel = new Hotel(req.body)
-//     user.hotel = hotel._id
-//     await hotel.save()
-//     await user.save()
-//     res.status(201).send({ message: 'Hotel added....', user })
-//   } catch (error) {
-//     console.log(error);
-//     res.status(400).send({ error: 'Unable to add hotel' })
-//   }
-// })
 
-// hotelRouter.post('/add-dish', async (req, res) => {
-//   const user = req.user
-//   const dish = req.body
-//   try {
-//     const hotel = await Hotel.findOne({ _id: user.hotel })
-//     console.log(hotel);
-//     hotel.dishes.push(dish)
-//     hotel.markModified('dishes')
-//     await hotel.save()
-//     // console.log(resul.dishes);
-//     res.status(201).send({ message: 'Dish added...', dish })
-//   } catch (error) {
-//     console.log(error);
-//     res.status(400).send({ error: 'Unable to add dish...' })
-//   }
-// })
 
 module.exports = hotelRouter
